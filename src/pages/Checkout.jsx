@@ -1,14 +1,14 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import useCartStore from '../store/cartStore';
-import { createOrder, pollOrderStatus } from '../api/woocommerce';
+import { createOrder, sendStkPush, pollPaymentStatus } from '../api/woocommerce';
 
 export default function Checkout() {
   const { items, getTotal, clearCart } = useCartStore();
   const navigate = useNavigate();
   const [paymentMethod, setPaymentMethod] = useState('mpesa');
   const [loading, setLoading] = useState(false);
-  const [stage, setStage] = useState('form'); // 'form' | 'waiting' | 'success' | 'failed'
+  const [stage, setStage] = useState('form');
   const [orderId, setOrderId] = useState(null);
   const [errorMsg, setErrorMsg] = useState('');
   const [form, setForm] = useState({
@@ -67,24 +67,33 @@ export default function Checkout() {
         ],
       };
 
-      // Create order
+      // Step 1: Create order
       const response = await createOrder(orderData);
       const order = response.data;
       setOrderId(order.id);
 
+      // Step 2: COD
       if (paymentMethod === 'cod') {
         clearCart();
         navigate(`/order-success?id=${order.id}&method=cod`);
         return;
       }
 
-      // M-Pesa — show waiting screen
-      setStage('waiting');
+      // Step 3: M-Pesa — show waiting screen then send STK push
       setLoading(false);
+      setStage('waiting');
 
-      // Poll for payment confirmation
+      const stkResponse = await sendStkPush(order.id, form.phone);
+
+      if (!stkResponse.data.success) {
+        setStage('failed');
+        setErrorMsg(stkResponse.data.message || 'Failed to send M-Pesa prompt.');
+        return;
+      }
+
+      // Step 4: Poll for payment confirmation
       try {
-        await pollOrderStatus(order.id);
+        await pollPaymentStatus(order.id);
         clearCart();
         setStage('success');
         setTimeout(() => {
@@ -92,9 +101,10 @@ export default function Checkout() {
         }, 2000);
       } catch (pollErr) {
         setStage('failed');
-        setErrorMsg(pollErr.message === 'Payment timeout'
-          ? 'Payment timed out. If you completed the payment please contact us with your order number.'
-          : 'Payment was not completed. Please try again.'
+        setErrorMsg(
+          pollErr.message === 'Payment timeout'
+            ? 'Payment timed out. If you completed the payment please contact us with your order number.'
+            : 'Payment was not completed. Please try again.'
         );
       }
 
@@ -114,10 +124,10 @@ export default function Checkout() {
             <span className="text-4xl">📱</span>
           </div>
           <h2 className="text-2xl font-bold text-dark mb-2">Check Your Phone</h2>
-          <p className="text-gray-500 mb-6">
+          <p className="text-gray-500 mb-2">
             An M-Pesa payment prompt has been sent to
-            <span className="font-bold text-dark block text-lg mt-1">{form.phone}</span>
           </p>
+          <p className="font-bold text-dark text-lg mb-6">{form.phone}</p>
 
           {/* Animated dots */}
           <div className="flex items-center justify-center gap-2 mb-6">
@@ -129,17 +139,21 @@ export default function Checkout() {
           <div className="bg-green-50 rounded-xl p-4 text-sm text-green-700 text-left mb-6">
             <p className="font-semibold mb-2">Steps to complete payment:</p>
             <ol className="space-y-1 list-decimal list-inside">
-              <li>Check your phone for M-Pesa prompt</li>
+              <li>Check your phone for the M-Pesa prompt</li>
               <li>Enter your M-Pesa PIN</li>
               <li>Wait for confirmation</li>
             </ol>
           </div>
 
           <div className="bg-gray-50 rounded-xl p-4 text-sm text-gray-600 mb-6">
-            <p className="font-semibold">Order Reference</p>
-            <p className="text-primary font-bold text-lg">#{orderId}</p>
-            <p className="font-semibold mt-2">Amount</p>
-            <p className="text-dark font-bold text-lg">KES {getTotal().toLocaleString()}</p>
+            <div className="flex justify-between items-center mb-2">
+              <span className="font-semibold">Order Reference</span>
+              <span className="text-primary font-bold">#{orderId}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="font-semibold">Amount</span>
+              <span className="text-dark font-bold">KES {getTotal().toLocaleString()}</span>
+            </div>
           </div>
 
           <p className="text-xs text-gray-400">
@@ -163,6 +177,9 @@ export default function Checkout() {
           </div>
           <h2 className="text-2xl font-bold text-dark mb-2">Payment Confirmed!</h2>
           <p className="text-gray-500">Redirecting you to your order...</p>
+          <div className="mt-4 flex justify-center">
+            <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          </div>
         </div>
       </div>
     );
@@ -185,7 +202,9 @@ export default function Checkout() {
             <div className="bg-gray-50 rounded-xl p-4 text-sm text-gray-600 mb-6">
               <p className="font-semibold">Your Order Number</p>
               <p className="text-primary font-bold text-lg">#{orderId}</p>
-              <p className="text-xs mt-1">Order is saved. Contact us if you completed payment.</p>
+              <p className="text-xs mt-1 text-gray-400">
+                Your order is saved. Contact us if you completed the payment.
+              </p>
             </div>
           )}
 
@@ -194,6 +213,7 @@ export default function Checkout() {
               onClick={() => {
                 setStage('form');
                 setErrorMsg('');
+                setOrderId(null);
               }}
               className="bg-primary text-white py-3 rounded-xl font-bold hover:bg-blue-700 transition"
             >
@@ -343,12 +363,11 @@ export default function Checkout() {
                   </div>
                 </label>
 
-                {/* M-Pesa selected info box */}
                 {paymentMethod === 'mpesa' && (
                   <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-sm text-green-700 ml-2">
                     <ol className="space-y-1 list-decimal list-inside">
-                      <li>Fill in your phone number in the field above</li>
-                      <li>Click the Pay button below</li>
+                      <li>Fill in your M-Pesa phone number above</li>
+                      <li>Click the Pay button</li>
                       <li>An STK push will appear on your phone</li>
                       <li>Enter your M-Pesa PIN to complete payment</li>
                     </ol>
@@ -439,6 +458,18 @@ export default function Checkout() {
                   ? '📱 Pay with M-Pesa'
                   : '✅ Place Order'}
               </button>
+
+              {paymentMethod === 'mpesa' && (
+                <div className="mt-4 bg-green-50 rounded-xl p-3 text-xs text-green-700">
+                  <p className="font-semibold mb-1">How it works:</p>
+                  <ol className="space-y-1 list-decimal list-inside">
+                    <li>Click Pay with M-Pesa</li>
+                    <li>STK push sent to your phone</li>
+                    <li>Enter your M-Pesa PIN</li>
+                    <li>Payment confirmed automatically</li>
+                  </ol>
+                </div>
+              )}
 
               <p className="text-xs text-gray-400 text-center mt-3">
                 By placing your order you agree to our terms and conditions.

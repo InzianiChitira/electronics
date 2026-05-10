@@ -8,6 +8,9 @@ const api = axios.create({
   },
 });
 
+// Base WordPress URL
+const wpBase = import.meta.env.VITE_WC_URL.replace('/wp-json/wc/v3', '');
+
 // Products
 export const getProducts = (params = {}) => api.get('/products', { params });
 export const getProduct = (id) => api.get(`/products/${id}`);
@@ -17,16 +20,25 @@ export const getCategories = () => api.get('/products/categories');
 export const createOrder = (orderData) => api.post('/orders', orderData);
 export const getOrder = (id) => api.get(`/orders/${id}`);
 
-// Poll order status until paid or timeout
-export const pollOrderStatus = (orderId, maxAttempts = 12, interval = 5000) => {
+// M-Pesa STK Push
+export const sendStkPush = (order_id, phone) =>
+  axios.post(`${wpBase}/wp-json/juancogroup/v1/stk-push`, { order_id, phone });
+
+// M-Pesa Payment Status
+export const getPaymentStatus = (order_id) =>
+  axios.get(`${wpBase}/wp-json/juancogroup/v1/payment-status/${order_id}`);
+
+// Poll payment status until paid or timeout
+export const pollPaymentStatus = (orderId, maxAttempts = 24, interval = 5000) => {
   return new Promise((resolve, reject) => {
     let attempts = 0;
     const timer = setInterval(async () => {
       attempts++;
       try {
-        const res = await getOrder(orderId);
-        const status = res.data.status;
-        if (status === 'processing' || status === 'completed') {
+        const res = await getPaymentStatus(orderId);
+        const { paid, status } = res.data;
+
+        if (paid) {
           clearInterval(timer);
           resolve(status);
         } else if (status === 'failed' || status === 'cancelled') {
