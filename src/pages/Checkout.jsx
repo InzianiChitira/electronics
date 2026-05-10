@@ -8,7 +8,9 @@ export default function Checkout() {
   const navigate = useNavigate();
   const [paymentMethod, setPaymentMethod] = useState('mpesa');
   const [loading, setLoading] = useState(false);
-  const [mpesaStatus, setMpesaStatus] = useState('');
+  const [stage, setStage] = useState('form'); // 'form' | 'waiting' | 'success' | 'failed'
+  const [orderId, setOrderId] = useState(null);
+  const [errorMsg, setErrorMsg] = useState('');
   const [form, setForm] = useState({
     first_name: '',
     last_name: '',
@@ -33,7 +35,7 @@ export default function Checkout() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setMpesaStatus('');
+    setErrorMsg('');
 
     try {
       const orderData = {
@@ -65,10 +67,10 @@ export default function Checkout() {
         ],
       };
 
-      // Step 1: Create order in WooCommerce
-      setMpesaStatus('Creating your order...');
+      // Create order
       const response = await createOrder(orderData);
       const order = response.data;
+      setOrderId(order.id);
 
       if (paymentMethod === 'cod') {
         clearCart();
@@ -76,30 +78,147 @@ export default function Checkout() {
         return;
       }
 
-      // Step 2: Redirect to WooCommerce to trigger STK push
-      setMpesaStatus('Redirecting to M-Pesa payment...');
-      clearCart();
+      // M-Pesa — show waiting screen
+      setStage('waiting');
+      setLoading(false);
 
-      // Redirect to WooCommerce order pay page which triggers STK push
-      window.location.href = `https://juancogroup.co.ke/electronics/checkout/order-pay/${order.id}/?pay_for_order=true&key=${order.order_key}`;
+      // Poll for payment confirmation
+      try {
+        await pollOrderStatus(order.id);
+        clearCart();
+        setStage('success');
+        setTimeout(() => {
+          navigate(`/order-success?id=${order.id}&method=mpesa`);
+        }, 2000);
+      } catch (pollErr) {
+        setStage('failed');
+        setErrorMsg(pollErr.message === 'Payment timeout'
+          ? 'Payment timed out. If you completed the payment please contact us with your order number.'
+          : 'Payment was not completed. Please try again.'
+        );
+      }
 
     } catch (err) {
-      setMpesaStatus('');
-      alert('Failed to place order. Please try again.');
+      setErrorMsg('Failed to place order. Please try again.');
       console.error(err);
       setLoading(false);
     }
   };
 
+  // ── Waiting Screen ──────────────────────────────────────────────
+  if (stage === 'waiting') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+        <div className="bg-white rounded-2xl shadow-xl p-10 max-w-md w-full text-center">
+          <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <span className="text-4xl">📱</span>
+          </div>
+          <h2 className="text-2xl font-bold text-dark mb-2">Check Your Phone</h2>
+          <p className="text-gray-500 mb-6">
+            An M-Pesa payment prompt has been sent to
+            <span className="font-bold text-dark block text-lg mt-1">{form.phone}</span>
+          </p>
+
+          {/* Animated dots */}
+          <div className="flex items-center justify-center gap-2 mb-6">
+            <div className="w-3 h-3 bg-mpesa rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+            <div className="w-3 h-3 bg-mpesa rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+            <div className="w-3 h-3 bg-mpesa rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+          </div>
+
+          <div className="bg-green-50 rounded-xl p-4 text-sm text-green-700 text-left mb-6">
+            <p className="font-semibold mb-2">Steps to complete payment:</p>
+            <ol className="space-y-1 list-decimal list-inside">
+              <li>Check your phone for M-Pesa prompt</li>
+              <li>Enter your M-Pesa PIN</li>
+              <li>Wait for confirmation</li>
+            </ol>
+          </div>
+
+          <div className="bg-gray-50 rounded-xl p-4 text-sm text-gray-600 mb-6">
+            <p className="font-semibold">Order Reference</p>
+            <p className="text-primary font-bold text-lg">#{orderId}</p>
+            <p className="font-semibold mt-2">Amount</p>
+            <p className="text-dark font-bold text-lg">KES {getTotal().toLocaleString()}</p>
+          </div>
+
+          <p className="text-xs text-gray-400">
+            Waiting for payment confirmation. This page will update automatically.
+            Do not close or refresh this page.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Success Screen ──────────────────────────────────────────────
+  if (stage === 'success') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+        <div className="bg-white rounded-2xl shadow-xl p-10 max-w-md w-full text-center">
+          <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-10 h-10 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <h2 className="text-2xl font-bold text-dark mb-2">Payment Confirmed!</h2>
+          <p className="text-gray-500">Redirecting you to your order...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Failed Screen ───────────────────────────────────────────────
+  if (stage === 'failed') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+        <div className="bg-white rounded-2xl shadow-xl p-10 max-w-md w-full text-center">
+          <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-10 h-10 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </div>
+          <h2 className="text-2xl font-bold text-dark mb-2">Payment Incomplete</h2>
+          <p className="text-gray-500 mb-6">{errorMsg}</p>
+
+          {orderId && (
+            <div className="bg-gray-50 rounded-xl p-4 text-sm text-gray-600 mb-6">
+              <p className="font-semibold">Your Order Number</p>
+              <p className="text-primary font-bold text-lg">#{orderId}</p>
+              <p className="text-xs mt-1">Order is saved. Contact us if you completed payment.</p>
+            </div>
+          )}
+
+          <div className="flex flex-col gap-3">
+            <button
+              onClick={() => {
+                setStage('form');
+                setErrorMsg('');
+              }}
+              className="bg-primary text-white py-3 rounded-xl font-bold hover:bg-blue-700 transition"
+            >
+              Try Again
+            </button>
+            <Link
+              to="/shop"
+              className="text-gray-500 hover:text-primary transition text-sm"
+            >
+              Back to Shop
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Main Checkout Form ──────────────────────────────────────────
   return (
     <div className="max-w-6xl mx-auto px-4 py-10">
       <h1 className="text-3xl font-bold text-dark mb-8">Checkout</h1>
 
-      {/* M-Pesa Status Message */}
-      {mpesaStatus && (
-        <div className="mb-6 bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3">
-          <div className="w-5 h-5 border-2 border-green-500 border-t-transparent rounded-full animate-spin flex-shrink-0" />
-          <p className="text-green-700 font-medium">{mpesaStatus}</p>
+      {errorMsg && (
+        <div className="mb-6 bg-red-50 border border-red-200 rounded-xl p-4">
+          <p className="text-red-600 font-medium">{errorMsg}</p>
         </div>
       )}
 
@@ -149,7 +268,9 @@ export default function Checkout() {
                 <label className="text-sm text-gray-600 mb-1 block">
                   Phone Number *
                   {paymentMethod === 'mpesa' && (
-                    <span className="text-green-600 ml-1 text-xs">(M-Pesa STK push will be sent here)</span>
+                    <span className="text-mpesa ml-2 text-xs font-medium">
+                      STK push will be sent here
+                    </span>
                   )}
                 </label>
                 <input
@@ -158,8 +279,17 @@ export default function Checkout() {
                   placeholder="e.g. 0712345678"
                   value={form.phone}
                   onChange={handleChange}
-                  className="border rounded-xl px-4 py-2 w-full focus:outline-none focus:ring-2 focus:ring-primary"
+                  className={`border rounded-xl px-4 py-2 w-full focus:outline-none focus:ring-2 transition ${
+                    paymentMethod === 'mpesa'
+                      ? 'border-mpesa focus:ring-mpesa'
+                      : 'focus:ring-primary'
+                  }`}
                 />
+                {paymentMethod === 'mpesa' && (
+                  <p className="text-xs text-gray-400 mt-1">
+                    Make sure this is your M-Pesa registered number
+                  </p>
+                )}
               </div>
               <div className="mt-4">
                 <label className="text-sm text-gray-600 mb-1 block">Delivery Address *</label>
@@ -208,10 +338,22 @@ export default function Checkout() {
                   <div>
                     <p className="font-bold text-mpesa">Lipa na M-Pesa</p>
                     <p className="text-sm text-gray-500">
-                      You will receive an STK push on your phone. Enter your PIN to pay.
+                      Enter your phone number above. You will receive an STK push to enter your PIN.
                     </p>
                   </div>
                 </label>
+
+                {/* M-Pesa selected info box */}
+                {paymentMethod === 'mpesa' && (
+                  <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-sm text-green-700 ml-2">
+                    <ol className="space-y-1 list-decimal list-inside">
+                      <li>Fill in your phone number in the field above</li>
+                      <li>Click the Pay button below</li>
+                      <li>An STK push will appear on your phone</li>
+                      <li>Enter your M-Pesa PIN to complete payment</li>
+                    </ol>
+                  </div>
+                )}
 
                 {/* Cash on Delivery */}
                 <label className={`flex items-center gap-4 p-4 border-2 rounded-xl cursor-pointer transition ${
@@ -282,7 +424,11 @@ export default function Checkout() {
               <button
                 type="submit"
                 disabled={loading}
-                className="mt-6 w-full py-4 rounded-xl text-white font-bold text-lg transition disabled:opacity-50 disabled:cursor-not-allowed bg-primary hover:bg-blue-700"
+                className={`mt-6 w-full py-4 rounded-xl text-white font-bold text-lg transition disabled:opacity-50 disabled:cursor-not-allowed ${
+                  paymentMethod === 'mpesa'
+                    ? 'bg-mpesa hover:bg-green-700'
+                    : 'bg-primary hover:bg-blue-700'
+                }`}
               >
                 {loading ? (
                   <span className="flex items-center justify-center gap-2">
@@ -293,18 +439,6 @@ export default function Checkout() {
                   ? '📱 Pay with M-Pesa'
                   : '✅ Place Order'}
               </button>
-
-              {paymentMethod === 'mpesa' && (
-                <div className="mt-4 bg-green-50 rounded-xl p-3 text-xs text-green-700">
-                  <p className="font-semibold mb-1">How M-Pesa payment works:</p>
-                  <ol className="space-y-1 list-decimal list-inside">
-                    <li>Click "Pay with M-Pesa"</li>
-                    <li>You will be redirected to complete payment</li>
-                    <li>An STK push will be sent to your phone</li>
-                    <li>Enter your M-Pesa PIN to confirm</li>
-                  </ol>
-                </div>
-              )}
 
               <p className="text-xs text-gray-400 text-center mt-3">
                 By placing your order you agree to our terms and conditions.
