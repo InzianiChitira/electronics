@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import useCartStore from '../store/cartStore';
+import useCartSidebarStore from '../store/cartSidebarStore';
 
 function QuickViewModal({ product, onClose }) {
   const addItem = useCartStore(s => s.addItem);
+  const openCart = useCartSidebarStore(s => s.open);
   const navigate = useNavigate();
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
@@ -17,6 +19,7 @@ function QuickViewModal({ product, onClose }) {
   const handleAddToCart = () => {
     addItem(product, quantity);
     setAdded(true);
+    openCart();
     setTimeout(() => setAdded(false), 2000);
   };
 
@@ -28,26 +31,24 @@ function QuickViewModal({ product, onClose }) {
 
   return (
     <div
-      className="fixed inset-0 bg-black bg-opacity-60 z-[999] flex items-center justify-center p-4"
+      className="fixed inset-0 bg-black bg-opacity-60 z-[9999] flex items-center justify-center p-4"
       onClick={onClose}
     >
       <div
         className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto"
         onClick={e => e.stopPropagation()}
       >
-        {/* Modal Header */}
         <div className="flex items-center justify-between p-4 border-b">
           <h2 className="font-bold text-dark text-lg">Quick View</h2>
           <button
             onClick={onClose}
             className="w-8 h-8 rounded-full bg-gray-100 hover:bg-red-500 hover:text-white transition flex items-center justify-center font-bold text-lg"
           >
-            ×
+            x
           </button>
         </div>
 
         <div className="grid md:grid-cols-2 gap-6 p-6">
-          {/* Images */}
           <div>
             <div className="bg-gray-50 rounded-xl overflow-hidden mb-3">
               <img
@@ -73,11 +74,9 @@ function QuickViewModal({ product, onClose }) {
             )}
           </div>
 
-          {/* Details */}
           <div className="flex flex-col gap-4">
             <h3 className="text-xl font-bold text-dark">{product.name}</h3>
 
-            {/* Price */}
             <div className="flex items-center gap-3">
               <span className="text-2xl font-bold text-primary">
                 KES {price.toLocaleString()}
@@ -89,14 +88,12 @@ function QuickViewModal({ product, onClose }) {
               )}
             </div>
 
-            {/* Stock */}
             <span className={`text-sm font-medium w-fit px-3 py-1 rounded-full ${
               inStock ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
             }`}>
               {inStock ? '✓ In Stock' : '✗ Out of Stock'}
             </span>
 
-            {/* Description */}
             {product.short_description && (
               <div
                 className="text-gray-500 text-sm leading-relaxed line-clamp-3"
@@ -104,14 +101,13 @@ function QuickViewModal({ product, onClose }) {
               />
             )}
 
-            {/* Quantity */}
             <div className="flex items-center gap-3">
               <span className="text-sm font-medium text-gray-600">Qty:</span>
               <div className="flex items-center border rounded-xl overflow-hidden">
                 <button
                   onClick={() => setQuantity(q => Math.max(1, q - 1))}
                   className="px-3 py-2 hover:bg-gray-100 font-bold transition"
-                >−</button>
+                >-</button>
                 <span className="px-4 py-2 font-semibold">{quantity}</span>
                 <button
                   onClick={() => setQuantity(q => q + 1)}
@@ -120,7 +116,6 @@ function QuickViewModal({ product, onClose }) {
               </div>
             </div>
 
-            {/* Buttons */}
             <div className="flex flex-col gap-2">
               <button
                 onClick={handleAddToCart}
@@ -148,7 +143,6 @@ function QuickViewModal({ product, onClose }) {
               </a>
             </div>
 
-            {/* View Full Details */}
             <Link
               to={`/product/${product.id}`}
               onClick={onClose}
@@ -165,6 +159,7 @@ function QuickViewModal({ product, onClose }) {
 
 export default function ProductCard({ product }) {
   const addItem = useCartStore(s => s.addItem);
+  const openCart = useCartSidebarStore(s => s.open);
   const navigate = useNavigate();
   const [added, setAdded] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -181,6 +176,7 @@ export default function ProductCard({ product }) {
     e.preventDefault();
     addItem(product);
     setAdded(true);
+    openCart();
     setTimeout(() => setAdded(false), 2000);
   };
 
@@ -303,7 +299,7 @@ export default function ProductCard({ product }) {
 
             {/* WhatsApp */}
             <div className="relative group/tip">
-              <a
+                <a
                 href={whatsappUrl}
                 target="_blank"
                 rel="noopener noreferrer"

@@ -1,27 +1,20 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getCategories } from '../api/woocommerce';
 import useCartStore from '../store/cartStore';
+import useCartSidebarStore from '../store/cartSidebarStore';
+import LiveSearch from './LiveSearch';
 
 export default function Navbar() {
   const count = useCartStore(s => s.getCount());
+  const openCart = useCartSidebarStore(s => s.open);
   const [showCategories, setShowCategories] = useState(false);
-  const [search, setSearch] = useState('');
-  const navigate = useNavigate();
 
   const { data: categories } = useQuery({
     queryKey: ['categories'],
     queryFn: () => getCategories().then(r => r.data),
   });
-
-  const handleSearch = (e) => {
-    e.preventDefault();
-    if (search.trim()) {
-      navigate(`/shop?search=${search}`);
-      setSearch('');
-    }
-  };
 
   return (
     <header className="sticky top-0 z-50">
@@ -49,10 +42,10 @@ export default function Navbar() {
           </Link>
 
           {/* Category Dropdown */}
-          <div className="relative hidden md:block">
+          <div className="relative hidden md:block flex-shrink-0">
             <button
               onClick={() => setShowCategories(!showCategories)}
-              className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition"
+              className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-xl font-medium hover:bg-blue-700 transition text-sm"
             >
               ☰ All Categories
               <span className="text-xs">{showCategories ? '▲' : '▼'}</span>
@@ -81,43 +74,32 @@ export default function Navbar() {
             )}
           </div>
 
-          {/* Search Bar */}
-          <form onSubmit={handleSearch} className="flex-1 flex">
-            <input
-              type="text"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Search for products..."
-              className="flex-1 border border-gray-200 rounded-l-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary text-sm"
-            />
-            <button
-              type="submit"
-              className="bg-primary text-white px-5 py-2 rounded-r-xl hover:bg-blue-700 transition"
-            >
-              🔍
-            </button>
-          </form>
+          {/* Live Search */}
+          <LiveSearch />
 
-          {/* Cart */}
-          <Link to="/cart" className="relative flex-shrink-0">
-            <div className="flex items-center gap-2 border-2 border-primary text-primary px-4 py-2 rounded-xl hover:bg-primary hover:text-white transition font-medium">
-              <span className="text-xl">🛒</span>
-              <div className="hidden md:block text-sm">
-                <p className="text-xs text-gray-400 leading-none">Your Cart</p>
-                <p className="font-bold leading-none">{count} items</p>
-              </div>
-              {count > 0 && (
-                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
-                  {count}
-                </span>
-              )}
+          {/* Cart Button */}
+          <button
+            onClick={openCart}
+            className="relative flex-shrink-0 flex items-center gap-2 border-2 border-primary text-primary px-4 py-2 rounded-xl hover:bg-primary hover:text-white transition font-medium"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+            <div className="hidden md:block text-sm">
+              <p className="text-xs leading-none opacity-70">Your Cart</p>
+              <p className="font-bold leading-none">{count} items</p>
             </div>
-          </Link>
+            {count > 0 && (
+              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
+                {count}
+              </span>
+            )}
+          </button>
 
         </div>
       </div>
 
-      {/* Bottom Nav Links */}
+      {/* Bottom Nav */}
       <div className="bg-dark text-white">
         <div className="max-w-7xl mx-auto px-4 py-2 flex gap-6 text-sm overflow-x-auto">
           <Link to="/" className="hover:text-primary transition whitespace-nowrap font-medium">Home</Link>
