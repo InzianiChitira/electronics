@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import useCartStore from '../store/cartStore';
-import { createOrder } from '../api/woocommerce';
+import { createOrder, pollOrderStatus } from '../api/woocommerce';
 
 export default function Checkout() {
   const { items, getTotal, clearCart } = useCartStore();
   const navigate = useNavigate();
   const [paymentMethod, setPaymentMethod] = useState('mpesa');
   const [loading, setLoading] = useState(false);
+  const [mpesaStatus, setMpesaStatus] = useState('');
   const [form, setForm] = useState({
     first_name: '',
     last_name: '',
@@ -32,6 +33,7 @@ export default function Checkout() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setMpesaStatus('');
 
     try {
       const orderData = {
@@ -59,34 +61,47 @@ export default function Checkout() {
           quantity: item.quantity,
         })),
         meta_data: [
-          {
-            key: '_mpesa_phone',
-            value: form.phone,
-          },
+          { key: '_mpesa_phone', value: form.phone },
         ],
       };
 
+      // Step 1: Create order in WooCommerce
+      setMpesaStatus('Creating your order...');
       const response = await createOrder(orderData);
       const order = response.data;
+
+      if (paymentMethod === 'cod') {
+        clearCart();
+        navigate(`/order-success?id=${order.id}&method=cod`);
+        return;
+      }
+
+      // Step 2: Redirect to WooCommerce to trigger STK push
+      setMpesaStatus('Redirecting to M-Pesa payment...');
       clearCart();
 
-      if (paymentMethod === 'mpesa') {
-        // Redirect to WooCommerce to trigger STK push
-        window.location.href = `https://juancogroup.co.ke/checkout/order-pay/${order.id}/?pay_for_order=true&key=${order.order_key}`;
-      } else {
-        navigate(`/order-success?id=${order.id}&method=cod`);
-      }
+      // Redirect to WooCommerce order pay page which triggers STK push
+      window.location.href = `https://juancogroup.co.ke/electronics/checkout/order-pay/${order.id}/?pay_for_order=true&key=${order.order_key}`;
+
     } catch (err) {
+      setMpesaStatus('');
       alert('Failed to place order. Please try again.');
       console.error(err);
-    } finally {
       setLoading(false);
     }
   };
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-10">
-      <h1 className="text-3xl font-bold text-gray-800 mb-8">Checkout</h1>
+      <h1 className="text-3xl font-bold text-dark mb-8">Checkout</h1>
+
+      {/* M-Pesa Status Message */}
+      {mpesaStatus && (
+        <div className="mb-6 bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3">
+          <div className="w-5 h-5 border-2 border-green-500 border-t-transparent rounded-full animate-spin flex-shrink-0" />
+          <p className="text-green-700 font-medium">{mpesaStatus}</p>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit}>
         <div className="grid md:grid-cols-3 gap-8">
@@ -131,7 +146,12 @@ export default function Checkout() {
                 />
               </div>
               <div className="mt-4">
-                <label className="text-sm text-gray-600 mb-1 block">Phone Number *</label>
+                <label className="text-sm text-gray-600 mb-1 block">
+                  Phone Number *
+                  {paymentMethod === 'mpesa' && (
+                    <span className="text-green-600 ml-1 text-xs">(M-Pesa STK push will be sent here)</span>
+                  )}
+                </label>
                 <input
                   name="phone"
                   required
@@ -188,7 +208,7 @@ export default function Checkout() {
                   <div>
                     <p className="font-bold text-mpesa">Lipa na M-Pesa</p>
                     <p className="text-sm text-gray-500">
-                      You'll receive an STK push on your phone. Enter your PIN to pay.
+                      You will receive an STK push on your phone. Enter your PIN to pay.
                     </p>
                   </div>
                 </label>
@@ -234,10 +254,10 @@ export default function Checkout() {
                       className="w-12 h-12 object-cover rounded-lg flex-shrink-0"
                     />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-800 line-clamp-1">{item.name}</p>
+                      <p className="text-sm font-medium text-dark line-clamp-1">{item.name}</p>
                       <p className="text-xs text-gray-500">Qty: {item.quantity}</p>
                     </div>
-                    <p className="text-sm font-bold text-gray-800 flex-shrink-0">
+                    <p className="text-sm font-bold text-dark flex-shrink-0">
                       KES {(parseFloat(item.price) * item.quantity).toLocaleString()}
                     </p>
                   </div>
@@ -251,7 +271,7 @@ export default function Checkout() {
                 </div>
                 <div className="flex justify-between text-sm text-gray-600">
                   <span>Delivery</span>
-                  <span>TBD</span>
+                  <span className="text-green-600">TBD</span>
                 </div>
                 <div className="flex justify-between font-bold text-lg pt-2 border-t">
                   <span>Total</span>
@@ -264,12 +284,27 @@ export default function Checkout() {
                 disabled={loading}
                 className="mt-6 w-full py-4 rounded-xl text-white font-bold text-lg transition disabled:opacity-50 disabled:cursor-not-allowed bg-primary hover:bg-blue-700"
               >
-                {loading
-                  ? '⏳ Placing Order...'
-                  : paymentMethod === 'mpesa'
+                {loading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Processing...
+                  </span>
+                ) : paymentMethod === 'mpesa'
                   ? '📱 Pay with M-Pesa'
                   : '✅ Place Order'}
               </button>
+
+              {paymentMethod === 'mpesa' && (
+                <div className="mt-4 bg-green-50 rounded-xl p-3 text-xs text-green-700">
+                  <p className="font-semibold mb-1">How M-Pesa payment works:</p>
+                  <ol className="space-y-1 list-decimal list-inside">
+                    <li>Click "Pay with M-Pesa"</li>
+                    <li>You will be redirected to complete payment</li>
+                    <li>An STK push will be sent to your phone</li>
+                    <li>Enter your M-Pesa PIN to confirm</li>
+                  </ol>
+                </div>
+              )}
 
               <p className="text-xs text-gray-400 text-center mt-3">
                 By placing your order you agree to our terms and conditions.
