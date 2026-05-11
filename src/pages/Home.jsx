@@ -169,40 +169,19 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Slide dots — bottom left */}
-        <div className="absolute bottom-5 left-6 z-10 flex items-center gap-4">
-          <div className="flex gap-2">
-            {slides.map((_, i) => (
-              <button
-                key={i}
-                onClick={() => goToSlide(i)}
-                className={`transition-all duration-300 rounded-full ${
-                  i === slide
-                    ? 'w-8 h-2 bg-white'
-                    : 'w-2 h-2 bg-white/40 hover:bg-white/70'
-                }`}
-              />
-            ))}
-          </div>
-          <span className="text-white/40 text-xs tracking-widest">
-            {String(slide + 1).padStart(2, '0')} / {String(slides.length).padStart(2, '0')}
-          </span>
-        </div>
-
-        {/* Prev / Next arrows */}
-        <div className="absolute right-6 top-1/2 -translate-y-1/2 z-10 flex flex-col gap-2">
-          <button
-            onClick={() => goToSlide((slide - 1 + slides.length) % slides.length)}
-            className="w-8 h-8 rounded-full border border-white/30 flex items-center justify-center text-white hover:bg-white/20 transition backdrop-blur-sm text-xs"
-          >
-            ↑
-          </button>
-          <button
-            onClick={() => goToSlide((slide + 1) % slides.length)}
-            className="w-8 h-8 rounded-full border border-white/30 flex items-center justify-center text-white hover:bg-white/20 transition backdrop-blur-sm text-xs"
-          >
-            ↓
-          </button>
+        {/* Slide dots — bottom center */}
+        <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2">
+          {slides.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => goToSlide(i)}
+              className={`transition-all duration-300 rounded-full ${
+                i === slide
+                  ? 'w-8 h-2 bg-white'
+                  : 'w-2 h-2 bg-white/40 hover:bg-white/70'
+              }`}
+            />
+          ))}
         </div>
 
         {/* M-Pesa badge */}

@@ -11,6 +11,7 @@ export default function Checkout() {
   const [stage, setStage] = useState('form');
   const [orderId, setOrderId] = useState(null);
   const [errorMsg, setErrorMsg] = useState('');
+  const [mpesaPhone, setMpesaPhone] = useState('');
   const [form, setForm] = useState({
     first_name: '',
     last_name: '',
@@ -20,8 +21,10 @@ export default function Checkout() {
     city: '',
   });
 
-  const handleChange = e =>
-    setForm({ ...form, [e.target.name]: e.target.value });
+  const handleChange = e => {
+    const { name, value } = e.target;
+    setForm({ ...form, [name]: value });
+  };
 
   if (items.length === 0) return (
     <div className="max-w-6xl mx-auto px-4 py-20 text-center">
@@ -36,6 +39,12 @@ export default function Checkout() {
     e.preventDefault();
     setLoading(true);
     setErrorMsg('');
+
+    if (paymentMethod === 'mpesa' && !mpesaPhone) {
+      setErrorMsg('Please enter your M-Pesa phone number.');
+      setLoading(false);
+      return;
+    }
 
     try {
       const orderData = {
@@ -63,27 +72,24 @@ export default function Checkout() {
           quantity: item.quantity,
         })),
         meta_data: [
-          { key: '_mpesa_phone', value: form.phone },
+          { key: '_mpesa_phone', value: mpesaPhone || form.phone },
         ],
       };
 
-      // Step 1: Create order
       const response = await createOrder(orderData);
       const order = response.data;
       setOrderId(order.id);
 
-      // Step 2: COD
       if (paymentMethod === 'cod') {
         clearCart();
         navigate(`/order-success?id=${order.id}&method=cod`);
         return;
       }
 
-      // Step 3: M-Pesa — show waiting screen then send STK push
       setLoading(false);
       setStage('waiting');
 
-      const stkResponse = await sendStkPush(order.id, form.phone);
+      const stkResponse = await sendStkPush(order.id, mpesaPhone);
 
       if (!stkResponse.data.success) {
         setStage('failed');
@@ -91,7 +97,6 @@ export default function Checkout() {
         return;
       }
 
-      // Step 4: Poll for payment confirmation
       try {
         await pollPaymentStatus(order.id);
         clearCart();
@@ -124,12 +129,9 @@ export default function Checkout() {
             <span className="text-4xl">📱</span>
           </div>
           <h2 className="text-2xl font-bold text-dark mb-2">Check Your Phone</h2>
-          <p className="text-gray-500 mb-2">
-            An M-Pesa payment prompt has been sent to
-          </p>
-          <p className="font-bold text-dark text-lg mb-6">{form.phone}</p>
+          <p className="text-gray-500 mb-2">An M-Pesa payment prompt has been sent to</p>
+          <p className="font-bold text-dark text-lg mb-6">{mpesaPhone}</p>
 
-          {/* Animated dots */}
           <div className="flex items-center justify-center gap-2 mb-6">
             <div className="w-3 h-3 bg-mpesa rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
             <div className="w-3 h-3 bg-mpesa rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
@@ -219,10 +221,7 @@ export default function Checkout() {
             >
               Try Again
             </button>
-            <Link
-              to="/shop"
-              className="text-gray-500 hover:text-primary transition text-sm"
-            >
+            <Link to="/shop" className="text-gray-500 hover:text-primary transition text-sm">
               Back to Shop
             </Link>
           </div>
@@ -251,6 +250,7 @@ export default function Checkout() {
             {/* Personal Details */}
             <div className="bg-white rounded-2xl shadow p-6">
               <h2 className="text-lg font-bold mb-4">📋 Your Details</h2>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm text-gray-600 mb-1 block">First Name *</label>
@@ -273,6 +273,7 @@ export default function Checkout() {
                   />
                 </div>
               </div>
+
               <div className="mt-4">
                 <label className="text-sm text-gray-600 mb-1 block">Email Address *</label>
                 <input
@@ -284,33 +285,22 @@ export default function Checkout() {
                   className="border rounded-xl px-4 py-2 w-full focus:outline-none focus:ring-2 focus:ring-primary"
                 />
               </div>
+
               <div className="mt-4">
                 <label className="text-sm text-gray-600 mb-1 block">
                   Phone Number *
-                  {paymentMethod === 'mpesa' && (
-                    <span className="text-mpesa ml-2 text-xs font-medium">
-                      STK push will be sent here
-                    </span>
-                  )}
+                  <span className="text-gray-400 ml-1 text-xs font-normal">(Contact number)</span>
                 </label>
                 <input
                   name="phone"
                   required
-                  placeholder="e.g. 0712345678"
+                  placeholder="e.g. 0712 345 678"
                   value={form.phone}
                   onChange={handleChange}
-                  className={`border rounded-xl px-4 py-2 w-full focus:outline-none focus:ring-2 transition ${
-                    paymentMethod === 'mpesa'
-                      ? 'border-mpesa focus:ring-mpesa'
-                      : 'focus:ring-primary'
-                  }`}
+                  className="border rounded-xl px-4 py-2 w-full focus:outline-none focus:ring-2 focus:ring-primary"
                 />
-                {paymentMethod === 'mpesa' && (
-                  <p className="text-xs text-gray-400 mt-1">
-                    Make sure this is your M-Pesa registered number
-                  </p>
-                )}
               </div>
+
               <div className="mt-4">
                 <label className="text-sm text-gray-600 mb-1 block">Delivery Address *</label>
                 <input
@@ -322,6 +312,7 @@ export default function Checkout() {
                   className="border rounded-xl px-4 py-2 w-full focus:outline-none focus:ring-2 focus:ring-primary"
                 />
               </div>
+
               <div className="mt-4">
                 <label className="text-sm text-gray-600 mb-1 block">City / Town *</label>
                 <input
@@ -340,7 +331,7 @@ export default function Checkout() {
               <h2 className="text-lg font-bold mb-4">💳 Payment Method</h2>
               <div className="space-y-3">
 
-                {/* M-Pesa */}
+                {/* M-Pesa Option */}
                 <label className={`flex items-center gap-4 p-4 border-2 rounded-xl cursor-pointer transition ${
                   paymentMethod === 'mpesa'
                     ? 'border-mpesa bg-green-50'
@@ -358,19 +349,44 @@ export default function Checkout() {
                   <div>
                     <p className="font-bold text-mpesa">Lipa na M-Pesa</p>
                     <p className="text-sm text-gray-500">
-                      Enter your phone number above. You will receive an STK push to enter your PIN.
+                      Receive an STK push on your phone and enter your PIN to pay.
                     </p>
                   </div>
                 </label>
 
+                {/* M-Pesa Phone Field */}
                 {paymentMethod === 'mpesa' && (
-                  <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-sm text-green-700 ml-2">
-                    <ol className="space-y-1 list-decimal list-inside">
-                      <li>Fill in your M-Pesa phone number above</li>
-                      <li>Click the Pay button</li>
-                      <li>An STK push will appear on your phone</li>
-                      <li>Enter your M-Pesa PIN to complete payment</li>
-                    </ol>
+                  <div className="mx-2 bg-green-50 border border-green-200 rounded-xl p-4">
+                    <label className="text-sm font-semibold text-green-800 mb-1 block">
+                      📱 M-Pesa Phone Number *
+                    </label>
+                    <p className="text-xs text-green-600 mb-3">
+                      Enter the M-Pesa registered number where you want to receive the STK push.
+                      This can be different from your contact number above.
+                    </p>
+                    <input
+                      type="tel"
+                      placeholder="e.g. 0712 345 678"
+                      value={mpesaPhone}
+                      onChange={e => setMpesaPhone(e.target.value)}
+                      required={paymentMethod === 'mpesa'}
+                      className="w-full border border-green-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-mpesa bg-white text-sm"
+                    />
+                    <div className="flex items-center gap-2 mt-3">
+                      <input
+                        type="checkbox"
+                        id="same-phone"
+                        className="accent-mpesa"
+                        checked={mpesaPhone === form.phone && form.phone !== ''}
+                        onChange={e => {
+                          if (e.target.checked) setMpesaPhone(form.phone);
+                          else setMpesaPhone('');
+                        }}
+                      />
+                      <label htmlFor="same-phone" className="text-xs text-green-700 cursor-pointer">
+                        Use same number as my contact number above
+                      </label>
+                    </div>
                   </div>
                 )}
 
@@ -440,6 +456,14 @@ export default function Checkout() {
                 </div>
               </div>
 
+              {/* M-Pesa number preview */}
+              {paymentMethod === 'mpesa' && mpesaPhone && (
+                <div className="mt-4 bg-green-50 border border-green-200 rounded-xl p-3">
+                  <p className="text-xs text-green-700 font-semibold">STK Push will be sent to:</p>
+                  <p className="text-sm font-bold text-green-800 mt-1">{mpesaPhone}</p>
+                </div>
+              )}
+
               <button
                 type="submit"
                 disabled={loading}
@@ -463,10 +487,10 @@ export default function Checkout() {
                 <div className="mt-4 bg-green-50 rounded-xl p-3 text-xs text-green-700">
                   <p className="font-semibold mb-1">How it works:</p>
                   <ol className="space-y-1 list-decimal list-inside">
+                    <li>Enter your M-Pesa number in the field above</li>
                     <li>Click Pay with M-Pesa</li>
                     <li>STK push sent to your phone</li>
-                    <li>Enter your M-Pesa PIN</li>
-                    <li>Payment confirmed automatically</li>
+                    <li>Enter your M-Pesa PIN to confirm</li>
                   </ol>
                 </div>
               )}
