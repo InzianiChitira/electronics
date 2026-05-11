@@ -2,160 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import useCartStore from '../store/cartStore';
 import useCartSidebarStore from '../store/cartSidebarStore';
-
-function QuickViewModal({ product, onClose }) {
-  const addItem = useCartStore(s => s.addItem);
-  const openCart = useCartSidebarStore(s => s.open);
-  const navigate = useNavigate();
-  const [quantity, setQuantity] = useState(1);
-  const [added, setAdded] = useState(false);
-  const [activeImage, setActiveImage] = useState(0);
-
-  const price = parseFloat(product.price);
-  const regularPrice = parseFloat(product.regular_price);
-  const onSale = product.on_sale && regularPrice > price;
-  const inStock = product.stock_status === 'instock';
-
-  const handleAddToCart = () => {
-    addItem(product, quantity);
-    setAdded(true);
-    openCart();
-    setTimeout(() => setAdded(false), 2000);
-  };
-
-  const handleBuyNow = () => {
-    addItem(product, quantity);
-    onClose();
-    navigate('/checkout');
-  };
-
-  return (
-    <div
-      className="fixed inset-0 bg-black bg-opacity-60 z-[9999] flex items-center justify-center p-4"
-      onClick={onClose}
-    >
-      <div
-        className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto"
-        onClick={e => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between p-4 border-b">
-          <h2 className="font-bold text-dark text-lg">Quick View</h2>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 rounded-full bg-gray-100 hover:bg-red-500 hover:text-white transition flex items-center justify-center font-bold text-lg"
-          >
-            x
-          </button>
-        </div>
-
-        <div className="grid md:grid-cols-2 gap-6 p-6">
-          <div>
-            <div className="bg-gray-50 rounded-xl overflow-hidden mb-3">
-              <img
-                src={product.images?.[activeImage]?.src || 'https://placehold.co/400x400?text=No+Image'}
-                alt={product.name}
-                className="w-full h-64 object-contain p-4"
-              />
-            </div>
-            {product.images?.length > 1 && (
-              <div className="flex gap-2">
-                {product.images.map((img, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setActiveImage(i)}
-                    className={`w-16 h-16 rounded-lg overflow-hidden border-2 transition ${
-                      activeImage === i ? 'border-primary' : 'border-transparent'
-                    }`}
-                  >
-                    <img src={img.src} alt="" className="w-full h-full object-cover" />
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="flex flex-col gap-4">
-            <h3 className="text-xl font-bold text-dark">{product.name}</h3>
-
-            <div className="flex items-center gap-3">
-              <span className="text-2xl font-bold text-primary">
-                KES {price.toLocaleString()}
-              </span>
-              {onSale && (
-                <span className="text-gray-400 line-through">
-                  KES {regularPrice.toLocaleString()}
-                </span>
-              )}
-            </div>
-
-            <span className={`text-sm font-medium w-fit px-3 py-1 rounded-full ${
-              inStock ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-            }`}>
-              {inStock ? '✓ In Stock' : '✗ Out of Stock'}
-            </span>
-
-            {product.short_description && (
-              <div
-                className="text-gray-500 text-sm leading-relaxed line-clamp-3"
-                dangerouslySetInnerHTML={{ __html: product.short_description }}
-              />
-            )}
-
-            <div className="flex items-center gap-3">
-              <span className="text-sm font-medium text-gray-600">Qty:</span>
-              <div className="flex items-center border rounded-xl overflow-hidden">
-                <button
-                  onClick={() => setQuantity(q => Math.max(1, q - 1))}
-                  className="px-3 py-2 hover:bg-gray-100 font-bold transition"
-                >-</button>
-                <span className="px-4 py-2 font-semibold">{quantity}</span>
-                <button
-                  onClick={() => setQuantity(q => q + 1)}
-                  className="px-3 py-2 hover:bg-gray-100 font-bold transition"
-                >+</button>
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <button
-                onClick={handleAddToCart}
-                disabled={!inStock}
-                className={`w-full py-3 rounded-xl font-bold transition ${
-                  added ? 'bg-green-500 text-white' : 'bg-primary text-white hover:bg-blue-700'
-                } disabled:opacity-50`}
-              >
-                {added ? '✓ Added to Cart!' : '🛒 Add to Cart'}
-              </button>
-              <button
-                onClick={handleBuyNow}
-                disabled={!inStock}
-                className="w-full py-3 rounded-xl font-bold bg-dark text-white hover:bg-gray-800 transition disabled:opacity-50"
-              >
-                ⚡ Buy Now
-              </button>
-              <a
-                href={`https://wa.me/254700000000?text=Hi, I am interested in: ${encodeURIComponent(product.name)} - KES ${price.toLocaleString()}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full py-3 rounded-xl font-bold bg-mpesa text-white hover:bg-green-700 transition text-center"
-              >
-                💬 WhatsApp Order
-              </a>
-            </div>
-
-            <Link
-              to={`/product/${product.id}`}
-              onClick={onClose}
-              className="text-primary text-sm hover:underline text-center"
-            >
-              View Full Details →
-            </Link>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+import QuickViewModal from './QuickViewModal';
 
 export default function ProductCard({ product }) {
   const addItem = useCartStore(s => s.addItem);
@@ -272,9 +119,15 @@ export default function ProductCard({ product }) {
                     : 'border-gray-200 text-gray-500 hover:bg-orange-500 hover:text-white hover:border-orange-500'
                 } disabled:opacity-40`}
               >
-                <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
+                {added ? (
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                )}
               </button>
               <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-dark text-white text-xs px-2 py-1 rounded-lg whitespace-nowrap opacity-0 group-hover/tip:opacity-100 transition pointer-events-none">
                 {added ? 'Added!' : 'Add to Cart'}
@@ -299,7 +152,7 @@ export default function ProductCard({ product }) {
 
             {/* WhatsApp */}
             <div className="relative group/tip">
-                <a
+              <a
                 href={whatsappUrl}
                 target="_blank"
                 rel="noopener noreferrer"
