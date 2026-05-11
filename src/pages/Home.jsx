@@ -6,22 +6,28 @@ import ProductCard from '../components/ProductCard';
 
 const slides = [
   {
-    title: 'Premium Tech Products',
-    subtitle: 'Discover the latest smartphones, laptops & accessories',
-    bg: 'from-slate-900 to-blue-900',
-    emoji: '📱',
+    title: 'Next-Gen',
+    subtitle: 'Smartphones',
+    desc: 'Discover the latest flagship phones with cutting-edge technology at unbeatable prices.',
+    bg: 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=1600&q=80',
+    cta: 'Shop Phones',
+    accent: '#2563eb',
   },
   {
-    title: 'New Arrivals Just In',
-    subtitle: 'Check out the hottest electronics at the best prices in Kenya',
-    bg: 'from-blue-900 to-indigo-900',
-    emoji: '💻',
+    title: 'Premium',
+    subtitle: 'Laptops & PCs',
+    desc: 'Power through your day with high-performance laptops built for creators and professionals.',
+    bg: 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=1600&q=80',
+    cta: 'Shop Laptops',
+    accent: '#0f172a',
   },
   {
-    title: 'Pay with M-Pesa',
-    subtitle: 'Fast, secure checkout with Lipa na M-Pesa STK push',
-    bg: 'from-green-900 to-teal-900',
-    emoji: '🛒',
+    title: 'Smart',
+    subtitle: 'Accessories',
+    desc: 'Complete your setup with premium accessories — earbuds, watches, chargers and more.',
+    bg: 'https://images.unsplash.com/photo-1572635196237-14b3f281503f?w=1600&q=80',
+    cta: 'Shop Accessories',
+    accent: '#00a651',
   },
 ];
 
@@ -51,13 +57,26 @@ const ProductSkeleton = () => (
 
 export default function Home() {
   const [slide, setSlide] = useState(0);
+  const [animating, setAnimating] = useState(false);
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setSlide(s => (s + 1) % slides.length);
-    }, 4000);
+      setAnimating(true);
+      setTimeout(() => {
+        setSlide(s => (s + 1) % slides.length);
+        setAnimating(false);
+      }, 500);
+    }, 5000);
     return () => clearInterval(timer);
   }, []);
+
+  const goToSlide = (i) => {
+    setAnimating(true);
+    setTimeout(() => {
+      setSlide(i);
+      setAnimating(false);
+    }, 300);
+  };
 
   const { data: featured, isLoading: loadingFeatured } = useQuery({
     queryKey: ['featured'],
@@ -74,61 +93,140 @@ export default function Home() {
     queryFn: () => getCategories().then(r => r.data),
   });
 
+  const current = slides[slide];
+
   return (
-    <div className="font-poppins">
+    <div>
 
       {/* Hero Slider */}
-      <section className={`bg-gradient-to-r ${slides[slide].bg} text-white transition-all duration-700`}>
-        <div className="max-w-7xl mx-auto px-4 py-20 flex flex-col md:flex-row items-center justify-between gap-10">
-          <div className="flex flex-col gap-6 max-w-xl">
-            <span className="bg-white bg-opacity-20 text-white text-sm font-medium px-4 py-1 rounded-full w-fit">
-              New Arrivals
-            </span>
-            <h1 className="text-4xl md:text-5xl font-bold leading-tight">
-              {slides[slide].title}
+      <section className="relative h-[45vh] min-h-[380px] max-h-[450px] overflow-hidden">
+
+        {/* Background Image */}
+        <div
+          className={`absolute inset-0 transition-opacity duration-700 ${animating ? 'opacity-0' : 'opacity-100'}`}
+          style={{
+            backgroundImage: `url(${current.bg})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+          }}
+        />
+
+        {/* Dark Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-r from-black via-black/70 to-transparent" />
+
+        {/* Noise texture */}
+        <div
+          className="absolute inset-0 opacity-10"
+          style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E")`,
+          }}
+        />
+
+        {/* Content */}
+        <div className="relative z-10 h-full max-w-7xl mx-auto px-6 flex flex-col justify-center py-6">
+          <div className={`transition-all duration-500 ${animating ? 'opacity-0 translate-y-4' : 'opacity-100 translate-y-0'}`}>
+
+            {/* Tag */}
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-8 h-px bg-white opacity-60" />
+              <span className="text-white text-xs font-medium tracking-[0.2em] uppercase opacity-80">
+                Juancogroup Electronics
+              </span>
+            </div>
+
+            {/* Title */}
+            <h1 className="text-4xl md:text-5xl font-black text-white leading-none mb-1 tracking-tight">
+              {current.title}
             </h1>
-            <p className="text-blue-100 text-lg">
-              {slides[slide].subtitle}
+            <h2
+              className="text-3xl md:text-4xl font-black leading-none mb-4 tracking-tight"
+              style={{ color: current.accent === '#0f172a' ? '#60a5fa' : current.accent }}
+            >
+              {current.subtitle}
+            </h2>
+
+            {/* Description */}
+            <p className="text-white/70 text-sm max-w-md mb-6 leading-relaxed">
+              {current.desc}
             </p>
-            <div className="flex gap-4">
+
+            {/* CTA Buttons */}
+            <div className="flex items-center gap-3">
               <Link
                 to="/shop"
-                className="bg-white text-dark font-bold px-8 py-3 rounded-full hover:bg-blue-50 transition shadow-lg"
+                className="bg-white text-dark font-bold px-6 py-3 rounded-full hover:bg-gray-100 transition text-xs tracking-wide uppercase"
               >
-                Shop Now
+                {current.cta}
               </Link>
               <Link
                 to="/shop"
-                className="border-2 border-white text-white font-bold px-8 py-3 rounded-full hover:bg-white hover:text-dark transition"
+                className="border border-white/40 text-white font-medium px-6 py-3 rounded-full hover:bg-white/10 transition text-xs tracking-wide uppercase backdrop-blur-sm"
               >
-                Browse All
+                View All
               </Link>
             </div>
-          </div>
-          <div className="text-[120px] md:text-[160px] select-none animate-bounce">
-            {slides[slide].emoji}
+
           </div>
         </div>
-        <div className="flex justify-center gap-2 pb-6">
-          {slides.map((_, i) => (
-            <button
-              key={i}
-              onClick={() => setSlide(i)}
-              className={`w-3 h-3 rounded-full transition ${i === slide ? 'bg-white' : 'bg-white bg-opacity-40'}`}
-            />
-          ))}
+
+        {/* Slide dots — bottom left */}
+        <div className="absolute bottom-5 left-6 z-10 flex items-center gap-4">
+          <div className="flex gap-2">
+            {slides.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => goToSlide(i)}
+                className={`transition-all duration-300 rounded-full ${
+                  i === slide
+                    ? 'w-8 h-2 bg-white'
+                    : 'w-2 h-2 bg-white/40 hover:bg-white/70'
+                }`}
+              />
+            ))}
+          </div>
+          <span className="text-white/40 text-xs tracking-widest">
+            {String(slide + 1).padStart(2, '0')} / {String(slides.length).padStart(2, '0')}
+          </span>
         </div>
+
+        {/* Prev / Next arrows */}
+        <div className="absolute right-6 top-1/2 -translate-y-1/2 z-10 flex flex-col gap-2">
+          <button
+            onClick={() => goToSlide((slide - 1 + slides.length) % slides.length)}
+            className="w-8 h-8 rounded-full border border-white/30 flex items-center justify-center text-white hover:bg-white/20 transition backdrop-blur-sm text-xs"
+          >
+            ↑
+          </button>
+          <button
+            onClick={() => goToSlide((slide + 1) % slides.length)}
+            className="w-8 h-8 rounded-full border border-white/30 flex items-center justify-center text-white hover:bg-white/20 transition backdrop-blur-sm text-xs"
+          >
+            ↓
+          </button>
+        </div>
+
+        {/* M-Pesa badge */}
+        <div className="absolute bottom-5 right-6 z-10">
+          <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-xl px-3 py-2 flex items-center gap-2">
+            <span className="text-base">📱</span>
+            <div>
+              <p className="text-white text-xs font-bold">Pay with M-Pesa</p>
+              <p className="text-white/60 text-xs">Fast and Secure</p>
+            </div>
+          </div>
+        </div>
+
       </section>
 
       {/* Features Strip */}
-      <section className="bg-white border-b shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-5 grid grid-cols-2 md:grid-cols-4 gap-4">
+      <section className="bg-dark text-white">
+        <div className="max-w-7xl mx-auto px-4 py-4 grid grid-cols-2 md:grid-cols-4 gap-0 divide-x divide-white/10">
           {features.map(({ icon, title, desc }) => (
-            <div key={title} className="flex items-center gap-3 p-3">
-              <span className="text-3xl">{icon}</span>
+            <div key={title} className="flex items-center gap-3 px-6 py-3">
+              <span className="text-xl">{icon}</span>
               <div>
-                <p className="font-semibold text-dark text-sm">{title}</p>
-                <p className="text-gray-400 text-xs">{desc}</p>
+                <p className="font-semibold text-sm">{title}</p>
+                <p className="text-white/50 text-xs">{desc}</p>
               </div>
             </div>
           ))}
@@ -136,16 +234,19 @@ export default function Home() {
       </section>
 
       {/* Featured Products */}
-      <section className="max-w-7xl mx-auto px-4 py-14">
-        <div className="flex items-center justify-between mb-8">
+      <section className="max-w-7xl mx-auto px-4 py-16">
+        <div className="flex items-end justify-between mb-10">
           <div>
-            <h2 className="text-2xl font-bold text-dark">Featured Products</h2>
-            <p className="text-gray-400 text-sm mt-1">Hand-picked products for you</p>
+            <p className="text-primary text-sm font-semibold tracking-widest uppercase mb-2">
+              Hand Picked
+            </p>
+            <h2 className="text-3xl font-black text-dark">Featured Products</h2>
           </div>
-          <Link to="/shop" className="text-primary hover:underline font-semibold text-sm">
+          <Link to="/shop" className="text-sm font-semibold text-primary hover:underline">
             View all →
           </Link>
         </div>
+
         {loadingFeatured ? (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             {[...Array(8)].map((_, i) => <ProductSkeleton key={i} />)}
@@ -163,28 +264,39 @@ export default function Home() {
 
       {/* Browse Categories */}
       {categories?.filter(c => c.count > 0).length > 0 && (
-        <section className="bg-gray-50 py-14">
+        <section className="bg-gray-50 py-16">
           <div className="max-w-7xl mx-auto px-4">
-            <div className="flex items-center justify-between mb-8">
+            <div className="flex items-end justify-between mb-10">
               <div>
-                <h2 className="text-2xl font-bold text-dark">Browse Categories</h2>
-                <p className="text-gray-400 text-sm mt-1">Find what you are looking for</p>
+                <p className="text-primary text-sm font-semibold tracking-widest uppercase mb-2">
+                  Browse By
+                </p>
+                <h2 className="text-3xl font-black text-dark">Categories</h2>
               </div>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {categories.filter(c => c.count > 0).map(cat => (
+              {categories.filter(c => c.count > 0).map((cat, i) => (
                 <Link
                   key={cat.id}
                   to={`/shop?category=${cat.id}`}
-                  className="bg-white rounded-2xl shadow hover:shadow-lg transition p-6 flex flex-col items-center gap-3 group"
+                  className="group relative bg-white rounded-2xl shadow hover:shadow-xl transition-all duration-300 overflow-hidden"
                 >
-                  <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center text-3xl group-hover:bg-primary group-hover:text-white transition">
-                    📦
+                  <div
+                    className="absolute inset-0 opacity-5 group-hover:opacity-10 transition"
+                    style={{ background: `hsl(${i * 60}, 70%, 50%)` }}
+                  />
+                  <div className="relative p-6 flex flex-col items-center gap-3 text-center">
+                    <div
+                      className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl group-hover:scale-110 transition"
+                      style={{ background: `hsl(${i * 60}, 70%, 95%)` }}
+                    >
+                      📦
+                    </div>
+                    <p className="font-bold text-dark group-hover:text-primary transition">
+                      {cat.name}
+                    </p>
+                    <p className="text-gray-400 text-xs">{cat.count} products</p>
                   </div>
-                  <p className="font-semibold text-dark group-hover:text-primary transition text-center">
-                    {cat.name}
-                  </p>
-                  <p className="text-gray-400 text-xs">{cat.count} items</p>
                 </Link>
               ))}
             </div>
@@ -193,16 +305,19 @@ export default function Home() {
       )}
 
       {/* Latest Products */}
-      <section className="max-w-7xl mx-auto px-4 py-14">
-        <div className="flex items-center justify-between mb-8">
+      <section className="max-w-7xl mx-auto px-4 py-16">
+        <div className="flex items-end justify-between mb-10">
           <div>
-            <h2 className="text-2xl font-bold text-dark">Latest Products</h2>
-            <p className="text-gray-400 text-sm mt-1">Fresh arrivals in our store</p>
+            <p className="text-primary text-sm font-semibold tracking-widest uppercase mb-2">
+              Just Arrived
+            </p>
+            <h2 className="text-3xl font-black text-dark">Latest Products</h2>
           </div>
-          <Link to="/shop" className="text-primary hover:underline font-semibold text-sm">
+          <Link to="/shop" className="text-sm font-semibold text-primary hover:underline">
             View all →
           </Link>
         </div>
+
         {loadingLatest ? (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             {[...Array(8)].map((_, i) => <ProductSkeleton key={i} />)}
@@ -215,15 +330,27 @@ export default function Home() {
       </section>
 
       {/* CTA Banner */}
-      <section className="bg-gradient-to-r from-dark to-gray-800 text-white py-16">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-8">
+      <section className="relative overflow-hidden bg-dark py-20">
+        <div
+          className="absolute inset-0 opacity-20"
+          style={{
+            backgroundImage: 'url(https://images.unsplash.com/photo-1518770660439-4636190af475?w=1600&q=80)',
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+          }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-dark via-dark/90 to-dark/50" />
+        <div className="relative z-10 max-w-7xl mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-8">
           <div>
-            <h2 className="text-3xl font-bold mb-2">New Arrivals</h2>
-            <p className="text-gray-300">Check out the latest tech products</p>
+            <p className="text-primary text-sm font-semibold tracking-widest uppercase mb-3">
+              New Arrivals
+            </p>
+            <h2 className="text-4xl font-black text-white mb-2">Check Out the Latest</h2>
+            <p className="text-white/50">Fresh tech drops every week. Be the first to grab them.</p>
           </div>
           <Link
             to="/shop"
-            className="bg-primary text-white font-bold px-10 py-4 rounded-full hover:bg-blue-700 transition shadow-lg flex-shrink-0"
+            className="flex-shrink-0 bg-white text-dark font-bold px-10 py-4 rounded-full hover:bg-gray-100 transition uppercase tracking-wide text-sm"
           >
             Shop Now
           </Link>
@@ -231,20 +358,27 @@ export default function Home() {
       </section>
 
       {/* Contact Strip */}
-      <section className="bg-white border-t py-14">
+      <section className="bg-white border-t py-16">
         <div className="max-w-7xl mx-auto px-4">
-          <h2 className="text-2xl font-bold text-dark text-center mb-10">Get in Touch</h2>
+          <div className="text-center mb-12">
+            <p className="text-primary text-sm font-semibold tracking-widest uppercase mb-2">
+              We Are Here
+            </p>
+            <h2 className="text-3xl font-black text-dark">Get in Touch</h2>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {contacts.map(({ icon, label, value, href }) => (
               <a
                 key={label}
                 href={href}
-                className="flex items-center gap-4 p-6 bg-gray-50 rounded-2xl hover:bg-blue-50 hover:shadow transition group"
+                className="flex items-center gap-4 p-6 bg-gray-50 rounded-2xl hover:bg-blue-50 hover:shadow-md transition group border border-transparent hover:border-primary/20"
               >
-                <span className="text-3xl">{icon}</span>
+                <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center text-2xl group-hover:bg-primary group-hover:scale-110 transition">
+                  {icon}
+                </div>
                 <div>
-                  <p className="text-gray-400 text-xs">{label}</p>
-                  <p className="font-semibold text-dark group-hover:text-primary transition">{value}</p>
+                  <p className="text-gray-400 text-xs uppercase tracking-wide">{label}</p>
+                  <p className="font-bold text-dark group-hover:text-primary transition">{value}</p>
                 </div>
               </a>
             ))}
