@@ -184,16 +184,6 @@ export default function Home() {
           ))}
         </div>
 
-        {/* M-Pesa badge */}
-        <div className="absolute bottom-5 right-6 z-10">
-          <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-xl px-3 py-2 flex items-center gap-2">
-            <span className="text-base">📱</span>
-            <div>
-              <p className="text-white text-xs font-bold">Pay with M-Pesa</p>
-              <p className="text-white/60 text-xs">Fast and Secure</p>
-            </div>
-          </div>
-        </div>
 
       </section>
 
