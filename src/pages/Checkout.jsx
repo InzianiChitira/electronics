@@ -67,10 +67,24 @@ export default function Checkout() {
           city: form.city,
           country: 'KE',
         },
-        line_items: items.map(item => ({
-          product_id: item.id,
-          quantity: item.quantity,
-        })),
+        line_items: items.map(item => {
+          const lineItem = {
+            product_id: item.id,
+            quantity: item.quantity,
+          };
+          // Add variation_id if this is a variable product
+          if (item.variation_id) {
+            lineItem.variation_id = item.variation_id;
+          }
+          // Add variation attributes as meta data
+          if (item.selected_attributes && Object.keys(item.selected_attributes).length > 0) {
+            lineItem.meta_data = Object.entries(item.selected_attributes).map(([key, value]) => ({
+              key,
+              value,
+            }));
+          }
+          return lineItem;
+        }),
         meta_data: [
           { key: '_mpesa_phone', value: mpesaPhone || form.phone },
         ],
@@ -331,7 +345,7 @@ export default function Checkout() {
               <h2 className="text-lg font-bold mb-4">💳 Payment Method</h2>
               <div className="space-y-3">
 
-                {/* M-Pesa Option */}
+                {/* M-Pesa */}
                 <label className={`flex items-center gap-4 p-4 border-2 rounded-xl cursor-pointer transition ${
                   paymentMethod === 'mpesa'
                     ? 'border-mpesa bg-green-50'
@@ -422,9 +436,9 @@ export default function Checkout() {
             <div className="bg-white rounded-2xl shadow p-6 sticky top-24">
               <h2 className="text-lg font-bold mb-4">🧾 Order Summary</h2>
 
-              <div className="space-y-3 max-h-64 overflow-y-auto">
+              <div className="space-y-3 max-h-72 overflow-y-auto">
                 {items.map(item => (
-                  <div key={item.id} className="flex gap-3 items-center">
+                  <div key={item.cartKey} className="flex gap-3 items-start">
                     <img
                       src={item.images?.[0]?.src || 'https://placehold.co/60x60?text=No+Image'}
                       alt={item.name}
@@ -432,7 +446,22 @@ export default function Checkout() {
                     />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-dark line-clamp-1">{item.name}</p>
-                      <p className="text-xs text-gray-500">Qty: {item.quantity}</p>
+
+                      {/* Show variation attributes */}
+                      {item.selected_attributes && Object.keys(item.selected_attributes).length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-0.5">
+                          {Object.entries(item.selected_attributes).map(([key, value]) => (
+                            <span
+                              key={key}
+                              className="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded capitalize"
+                            >
+                              {value}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      <p className="text-xs text-gray-500 mt-0.5">Qty: {item.quantity}</p>
                     </div>
                     <p className="text-sm font-bold text-dark flex-shrink-0">
                       KES {(parseFloat(item.price) * item.quantity).toLocaleString()}

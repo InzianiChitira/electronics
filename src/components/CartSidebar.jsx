@@ -57,9 +57,10 @@ export default function CartSidebar() {
             <div>
               {items.map(item => (
                 <div
-                  key={item.id}
+                  key={item.cartKey}
                   className="flex gap-4 p-5 bg-white border-b relative"
                 >
+                  {/* Image */}
                   <div className="flex-shrink-0 w-20 h-20">
                     <img
                       src={item.images?.[0]?.src || 'https://placehold.co/80x80?text=No+Image'}
@@ -68,6 +69,7 @@ export default function CartSidebar() {
                     />
                   </div>
 
+                  {/* Details */}
                   <div className="flex-1 pr-6">
                     <Link
                       to={`/product/${item.id}`}
@@ -77,32 +79,53 @@ export default function CartSidebar() {
                       {item.name}
                     </Link>
 
+                    {/* Show selected variation attributes */}
+                    {item.selected_attributes && Object.keys(item.selected_attributes).length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {Object.entries(item.selected_attributes).map(([key, value]) => (
+                          <span
+                            key={key}
+                            className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full capitalize"
+                          >
+                            {key}: {value}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    <p className="text-primary font-bold text-sm mt-1">
+                      KES {parseFloat(item.price).toLocaleString()}
+                    </p>
+
+                    {/* Qty Controls */}
                     <div className="flex items-center justify-between mt-3">
                       <div className="flex items-center border rounded-lg overflow-hidden bg-white">
                         <button
-                          onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                          onClick={() => updateQuantity(item.cartKey, item.quantity - 1)}
                           className="w-7 h-7 flex items-center justify-center hover:bg-gray-100 transition text-gray-600 font-bold text-lg"
                         >
-                          -
+                          −
                         </button>
                         <span className="w-8 text-center text-sm font-semibold">
                           {item.quantity}
                         </span>
                         <button
-                          onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                          onClick={() => updateQuantity(item.cartKey, item.quantity + 1)}
                           className="w-7 h-7 flex items-center justify-center hover:bg-gray-100 transition text-gray-600 font-bold text-lg"
                         >
                           +
                         </button>
                       </div>
+
                       <span className="font-bold text-dark text-sm">
                         KES {(parseFloat(item.price) * item.quantity).toLocaleString()}
                       </span>
                     </div>
                   </div>
 
+                  {/* Remove */}
                   <button
-                    onClick={() => removeItem(item.id)}
+                    onClick={() => removeItem(item.cartKey)}
                     className="absolute top-4 right-4 text-gray-300 hover:text-red-500 transition"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

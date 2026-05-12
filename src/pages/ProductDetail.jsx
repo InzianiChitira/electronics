@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { getProduct } from '../api/woocommerce';
 import useCartStore from '../store/cartStore';
 import useCartSidebarStore from '../store/cartSidebarStore';
+import VariationSelector from '../components/VariationSelector';
 
 export default function ProductDetail() {
   const { id } = useParams();
@@ -13,23 +14,13 @@ export default function ProductDetail() {
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
   const [activeImage, setActiveImage] = useState(0);
+  const [selectedVariation, setSelectedVariation] = useState(null);
+  const [selectedAttributes, setSelectedAttributes] = useState({});
 
   const { data: product, isLoading, error } = useQuery({
     queryKey: ['product', id],
     queryFn: () => getProduct(id).then(r => r.data),
   });
-
-  const handleAddToCart = () => {
-    addItem(product, quantity);
-    setAdded(true);
-    openCart();
-    setTimeout(() => setAdded(false), 2000);
-  };
-
-  const handleBuyNow = () => {
-    addItem(product, quantity);
-    navigate('/checkout');
-  };
 
   if (isLoading) return (
     <div className="max-w-6xl mx-auto px-4 py-10">
@@ -55,12 +46,47 @@ export default function ProductDetail() {
     </div>
   );
 
-  const price = parseFloat(product.price);
-  const regularPrice = parseFloat(product.regular_price);
-  const onSale = product.on_sale && regularPrice > price;
+  const isVariable = product.type === 'variable';
+
+  const price = parseFloat(selectedVariation?.price || product.price);
+  const regularPrice = parseFloat(selectedVariation?.regular_price || product.regular_price);
+  const onSale = selectedVariation
+    ? selectedVariation.sale_price !== '' && parseFloat(selectedVariation.sale_price) < parseFloat(selectedVariation.regular_price)
+    : product.on_sale && regularPrice > price;
   const discount = onSale ? Math.round(((regularPrice - price) / regularPrice) * 100) : 0;
-  const inStock = product.stock_status === 'instock';
+  const inStock = selectedVariation
+    ? selectedVariation.stock_status === 'instock'
+    : product.stock_status === 'instock';
+
+  const displayImage = selectedVariation?.image?.src
+    ? selectedVariation.image.src
+    : product.images?.[activeImage]?.src || 'https://placehold.co/600x400?text=No+Image';
+
   const whatsappUrl = `https://wa.me/254700000000?text=Hi, I am interested in: ${encodeURIComponent(product.name)} - KES ${price.toLocaleString()}`;
+
+  const handleAddToCart = () => {
+    const itemToAdd = {
+      ...product,
+      price: selectedVariation?.price || product.price,
+      variation_id: selectedVariation?.id || null,
+      selected_attributes: selectedAttributes,
+    };
+    addItem(itemToAdd, quantity);
+    setAdded(true);
+    openCart();
+    setTimeout(() => setAdded(false), 2000);
+  };
+
+  const handleBuyNow = () => {
+    const itemToAdd = {
+      ...product,
+      price: selectedVariation?.price || product.price,
+      variation_id: selectedVariation?.id || null,
+      selected_attributes: selectedAttributes,
+    };
+    addItem(itemToAdd, quantity);
+    navigate('/checkout');
+  };
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-10">
@@ -80,7 +106,7 @@ export default function ProductDetail() {
         <div>
           <div className="bg-white rounded-2xl shadow overflow-hidden mb-4">
             <img
-              src={product.images?.[activeImage]?.src || 'https://placehold.co/600x400?text=No+Image'}
+              src={displayImage}
               alt={product.name}
               className="w-full h-96 object-contain p-6"
             />
@@ -117,19 +143,39 @@ export default function ProductDetail() {
                 Featured
               </span>
             )}
+            {isVariable && (
+              <span className="bg-gray-100 text-gray-600 text-xs font-bold px-3 py-1 rounded-full">
+                Multiple Options
+              </span>
+            )}
           </div>
 
           <h1 className="text-2xl font-bold text-dark mb-3">{product.name}</h1>
 
           {/* Price */}
           <div className="flex items-center gap-3 mb-4">
-            <span className="text-3xl font-bold text-primary">
-              KES {price.toLocaleString()}
-            </span>
-            {onSale && (
-              <span className="text-gray-400 line-through text-lg">
-                KES {regularPrice.toLocaleString()}
-              </span>
+            {isVariable && !selectedVariation ? (
+              <div>
+                <span className="text-2xl font-bold text-primary">
+                  KES {parseFloat(product.price_html ? product.price : product.price).toLocaleString()}
+                </span>
+                {product.variations?.length > 0 && (
+                  <p className="text-xs text-gray-400 mt-1">
+                    Price varies by selection
+                  </p>
+                )}
+              </div>
+            ) : (
+              <>
+                <span className="text-3xl font-bold text-primary">
+                  KES {price.toLocaleString()}
+                </span>
+                {onSale && (
+                  <span className="text-gray-400 line-through text-lg">
+                    KES {regularPrice.toLocaleString()}
+                  </span>
+                )}
+              </>
             )}
           </div>
 
@@ -143,9 +189,39 @@ export default function ProductDetail() {
           {/* Short Description */}
           {product.short_description && (
             <div
-              className="text-gray-600 text-sm leading-relaxed mb-6 prose max-w-none"
+              className="text-gray-600 text-sm leading-relaxed mb-5 prose max-w-none"
               dangerouslySetInnerHTML={{ __html: product.short_description }}
             />
+          )}
+
+          {/* Variation Selector */}
+          {isVariable && (
+            <div className="mb-5 bg-gray-50 rounded-2xl p-4 border border-gray-100">
+              <VariationSelector
+                productId={product.id}
+                attributes={product.attributes.filter(a => a.variation)}
+                onVariationSelected={setSelectedVariation}
+                onAttributesChanged={setSelectedAttributes}
+              />
+
+              {selectedVariation && (
+                <div className="mt-3 bg-green-50 border border-green-200 rounded-xl px-4 py-3 text-sm text-green-800 flex items-center gap-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span>
+                    Variation selected — KES {parseFloat(selectedVariation.price).toLocaleString()}
+                  </span>
+                </div>
+              )}
+
+              {!selectedVariation && Object.keys(selectedAttributes).length === 0 && (
+                <div className="mt-3 bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 text-sm text-blue-700 flex items-center gap-2">
+                  <span>👆</span>
+                  <span>Select your preferred options above</span>
+                </div>
+              )}
+            </div>
           )}
 
           {/* Quantity */}
@@ -158,7 +234,9 @@ export default function ProductDetail() {
               >
                 −
               </button>
-              <span className="px-4 py-2 font-semibold min-w-[40px] text-center">{quantity}</span>
+              <span className="px-4 py-2 font-semibold min-w-[40px] text-center">
+                {quantity}
+              </span>
               <button
                 onClick={() => setQuantity(q => q + 1)}
                 className="px-4 py-2 hover:bg-gray-100 transition font-bold text-lg"
@@ -168,14 +246,14 @@ export default function ProductDetail() {
             </div>
           </div>
 
-          {/* Action Buttons with Icons */}
+          {/* Action Buttons */}
           <div className="flex items-center gap-3 mb-6">
 
             {/* Add to Cart */}
             <div className="relative group/tip flex-1">
               <button
                 onClick={handleAddToCart}
-                disabled={!inStock}
+                disabled={!inStock || (isVariable && !selectedVariation)}
                 className={`w-full h-12 rounded-xl border-2 flex items-center justify-center gap-2 font-semibold transition ${
                   added
                     ? 'bg-green-500 border-green-500 text-white'
@@ -191,7 +269,9 @@ export default function ProductDetail() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
                   </svg>
                 )}
-                <span className="text-sm">{added ? 'Added to Cart!' : 'Add to Cart'}</span>
+                <span className="text-sm">
+                  {added ? 'Added to Cart!' : isVariable && !selectedVariation ? 'Select Options' : 'Add to Cart'}
+                </span>
               </button>
               <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-dark text-white text-xs px-2 py-1 rounded-lg whitespace-nowrap opacity-0 group-hover/tip:opacity-100 transition pointer-events-none">
                 Add to Cart
@@ -202,13 +282,15 @@ export default function ProductDetail() {
             <div className="relative group/tip flex-1">
               <button
                 onClick={handleBuyNow}
-                disabled={!inStock}
+                disabled={!inStock || (isVariable && !selectedVariation)}
                 className="w-full h-12 rounded-xl border-2 border-dark flex items-center justify-center gap-2 font-semibold text-dark hover:bg-dark hover:text-white transition disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                 </svg>
-                <span className="text-sm">Buy Now</span>
+                <span className="text-sm">
+                  {isVariable && !selectedVariation ? 'Select Options' : 'Buy Now'}
+                </span>
               </button>
               <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-dark text-white text-xs px-2 py-1 rounded-lg whitespace-nowrap opacity-0 group-hover/tip:opacity-100 transition pointer-events-none">
                 Buy Now
@@ -234,7 +316,7 @@ export default function ProductDetail() {
 
           </div>
 
-          {/* M-Pesa badge */}
+          {/* M-Pesa Badge */}
           <div className="bg-green-50 border border-green-200 rounded-xl p-3 flex items-center gap-3 mb-6">
             <span className="text-2xl">📱</span>
             <div>
@@ -261,6 +343,9 @@ export default function ProductDetail() {
                   </Link>
                 ))}
               </p>
+            )}
+            {isVariable && selectedVariation?.sku && (
+              <p><span className="font-medium text-dark">Variation SKU:</span> {selectedVariation.sku}</p>
             )}
           </div>
         </div>

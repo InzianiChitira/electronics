@@ -17,10 +17,16 @@ export default function ProductCard({ product }) {
   const onSale = product.on_sale && regularPrice > price;
   const discount = onSale ? Math.round(((regularPrice - price) / regularPrice) * 100) : 0;
   const inStock = product.stock_status === 'instock';
+  const isVariable = product.type === 'variable';
   const whatsappUrl = `https://wa.me/254700000000?text=Hi, I am interested in: ${encodeURIComponent(product.name)} - KES ${price.toLocaleString()}`;
 
   const handleAddToCart = (e) => {
     e.preventDefault();
+    // Variable products open quick view modal to select options first
+    if (isVariable) {
+      setShowModal(true);
+      return;
+    }
     addItem(product);
     setAdded(true);
     openCart();
@@ -29,6 +35,11 @@ export default function ProductCard({ product }) {
 
   const handleBuyNow = (e) => {
     e.preventDefault();
+    // Variable products go to product page
+    if (isVariable) {
+      navigate(`/product/${product.id}`);
+      return;
+    }
     addItem(product);
     navigate('/checkout');
   };
@@ -83,6 +94,9 @@ export default function ProductCard({ product }) {
                 KES {regularPrice.toLocaleString()}
               </span>
             )}
+            {isVariable && (
+              <span className="text-gray-400 text-xs">from</span>
+            )}
           </div>
 
           <p className={`text-xs font-medium mb-3 ${inStock ? 'text-green-500' : 'text-red-400'}`}>
@@ -108,7 +122,7 @@ export default function ProductCard({ product }) {
               </span>
             </div>
 
-            {/* Add to Cart */}
+            {/* Add to Cart — always shows cart icon, opens modal for variable */}
             <div className="relative group/tip">
               <button
                 onClick={handleAddToCart}
@@ -130,7 +144,7 @@ export default function ProductCard({ product }) {
                 )}
               </button>
               <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-dark text-white text-xs px-2 py-1 rounded-lg whitespace-nowrap opacity-0 group-hover/tip:opacity-100 transition pointer-events-none">
-                {added ? 'Added!' : 'Add to Cart'}
+                {added ? 'Added!' : isVariable ? 'Select Options' : 'Add to Cart'}
               </span>
             </div>
 
@@ -146,7 +160,7 @@ export default function ProductCard({ product }) {
                 </svg>
               </button>
               <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-dark text-white text-xs px-2 py-1 rounded-lg whitespace-nowrap opacity-0 group-hover/tip:opacity-100 transition pointer-events-none">
-                Buy Now
+                {isVariable ? 'View Options' : 'Buy Now'}
               </span>
             </div>
 

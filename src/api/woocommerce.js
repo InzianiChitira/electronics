@@ -16,6 +16,10 @@ export const getProducts = (params = {}) => api.get('/products', { params });
 export const getProduct = (id) => api.get(`/products/${id}`);
 export const getCategories = () => api.get('/products/categories');
 
+// Product Variations
+export const getProductVariations = (productId) =>
+  api.get(`/products/${productId}/variations`, { params: { per_page: 100 } });
+
 // Orders
 export const createOrder = (orderData) => api.post('/orders', orderData);
 export const getOrder = (id) => api.get(`/orders/${id}`);
@@ -37,7 +41,6 @@ export const pollPaymentStatus = (orderId, maxAttempts = 24, interval = 5000) =>
       try {
         const res = await getPaymentStatus(orderId);
         const { paid, status } = res.data;
-
         if (paid) {
           clearInterval(timer);
           resolve(status);

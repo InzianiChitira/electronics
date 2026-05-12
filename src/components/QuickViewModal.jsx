@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import useCartStore from '../store/cartStore';
 import useCartSidebarStore from '../store/cartSidebarStore';
+import VariationSelector from './VariationSelector';
 
 export default function QuickViewModal({ product, onClose }) {
   const addItem = useCartStore(s => s.addItem);
@@ -10,25 +11,52 @@ export default function QuickViewModal({ product, onClose }) {
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
   const [activeImage, setActiveImage] = useState(0);
+  const [selectedVariation, setSelectedVariation] = useState(null);
+  const [selectedAttributes, setSelectedAttributes] = useState({});
 
-  const price = parseFloat(product.price);
-  const regularPrice = parseFloat(product.regular_price);
-  const onSale = product.on_sale && regularPrice > price;
-  const inStock = product.stock_status === 'instock';
+  const isVariable = product.type === 'variable';
+
+  const price = parseFloat(selectedVariation?.price || product.price);
+  const regularPrice = parseFloat(selectedVariation?.regular_price || product.regular_price);
+  const onSale = selectedVariation
+    ? selectedVariation.sale_price !== '' && parseFloat(selectedVariation.sale_price) < parseFloat(selectedVariation.regular_price)
+    : product.on_sale && regularPrice > price;
+  const inStock = selectedVariation
+    ? selectedVariation.stock_status === 'instock'
+    : product.stock_status === 'instock';
+
+  const displayImage = selectedVariation?.image?.src
+    ? selectedVariation.image.src
+    : product.images?.[activeImage]?.src || 'https://placehold.co/400x400?text=No+Image';
+
   const whatsappUrl = `https://wa.me/254700000000?text=Hi, I am interested in: ${encodeURIComponent(product.name)} - KES ${price.toLocaleString()}`;
 
   const handleAddToCart = () => {
-    addItem(product, quantity);
+    const itemToAdd = {
+      ...product,
+      price: selectedVariation?.price || product.price,
+      variation_id: selectedVariation?.id || null,
+      selected_attributes: selectedAttributes,
+    };
+    addItem(itemToAdd, quantity);
     setAdded(true);
     openCart();
     setTimeout(() => setAdded(false), 2000);
   };
 
   const handleBuyNow = () => {
-    addItem(product, quantity);
+    const itemToAdd = {
+      ...product,
+      price: selectedVariation?.price || product.price,
+      variation_id: selectedVariation?.id || null,
+      selected_attributes: selectedAttributes,
+    };
+    addItem(itemToAdd, quantity);
     onClose();
     navigate('/checkout');
   };
+
+  const canAddToCart = inStock && (!isVariable || selectedVariation);
 
   return (
     <div
@@ -40,7 +68,7 @@ export default function QuickViewModal({ product, onClose }) {
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b">
+        <div className="flex items-center justify-between p-4 border-b sticky top-0 bg-white z-10">
           <h2 className="font-bold text-dark text-lg">Quick View</h2>
           <button
             onClick={onClose}
@@ -56,18 +84,18 @@ export default function QuickViewModal({ product, onClose }) {
           <div>
             <div className="bg-gray-50 rounded-xl overflow-hidden mb-3">
               <img
-                src={product.images?.[activeImage]?.src || 'https://placehold.co/400x400?text=No+Image'}
+                src={displayImage}
                 alt={product.name}
                 className="w-full h-64 object-contain p-4"
               />
             </div>
             {product.images?.length > 1 && (
-              <div className="flex gap-2">
+              <div className="flex gap-2 overflow-x-auto">
                 {product.images.map((img, i) => (
                   <button
                     key={i}
                     onClick={() => setActiveImage(i)}
-                    className={`w-16 h-16 rounded-lg overflow-hidden border-2 transition ${
+                    className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition ${
                       activeImage === i ? 'border-primary' : 'border-transparent'
                     }`}
                   >
@@ -79,18 +107,31 @@ export default function QuickViewModal({ product, onClose }) {
           </div>
 
           {/* Details */}
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-3">
+
+            {/* Name */}
             <h3 className="text-xl font-bold text-dark">{product.name}</h3>
 
             {/* Price */}
             <div className="flex items-center gap-3">
-              <span className="text-2xl font-bold text-primary">
-                KES {price.toLocaleString()}
-              </span>
-              {onSale && (
-                <span className="text-gray-400 line-through">
-                  KES {regularPrice.toLocaleString()}
-                </span>
+              {isVariable && !selectedVariation ? (
+                <div>
+                  <span className="text-2xl font-bold text-primary">
+                    KES {parseFloat(product.price).toLocaleString()}
+                  </span>
+                  <span className="text-gray-400 text-xs ml-2">from</span>
+                </div>
+              ) : (
+                <>
+                  <span className="text-2xl font-bold text-primary">
+                    KES {price.toLocaleString()}
+                  </span>
+                  {onSale && (
+                    <span className="text-gray-400 line-through">
+                      KES {regularPrice.toLocaleString()}
+                    </span>
+                  )}
+                </>
               )}
             </div>
 
@@ -101,12 +142,35 @@ export default function QuickViewModal({ product, onClose }) {
               {inStock ? '✓ In Stock' : '✗ Out of Stock'}
             </span>
 
-            {/* Description */}
+            {/* Short Description */}
             {product.short_description && (
               <div
-                className="text-gray-500 text-sm leading-relaxed line-clamp-3"
+                className="text-gray-500 text-sm leading-relaxed line-clamp-2"
                 dangerouslySetInnerHTML={{ __html: product.short_description }}
               />
+            )}
+
+            {/* Variation Selector */}
+            {isVariable && (
+              <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+                  Select Options
+                </p>
+                <VariationSelector
+                  productId={product.id}
+                  attributes={product.attributes.filter(a => a.variation)}
+                  onVariationSelected={setSelectedVariation}
+                  onAttributesChanged={setSelectedAttributes}
+                />
+                {selectedVariation && (
+                  <div className="mt-2 bg-green-50 border border-green-200 rounded-xl px-3 py-2 text-xs text-green-800 flex items-center gap-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    KES {parseFloat(selectedVariation.price).toLocaleString()} selected
+                  </div>
+                )}
+              </div>
             )}
 
             {/* Quantity */}
@@ -125,14 +189,14 @@ export default function QuickViewModal({ product, onClose }) {
               </div>
             </div>
 
-            {/* Icon Action Buttons */}
-            <div className="flex items-center gap-3 pt-2">
+            {/* Action Icon Buttons */}
+            <div className="flex items-center gap-3 pt-1">
 
               {/* Add to Cart */}
               <div className="relative group/tip flex-1">
                 <button
                   onClick={handleAddToCart}
-                  disabled={!inStock}
+                  disabled={!canAddToCart}
                   className={`w-full h-12 rounded-xl border-2 flex items-center justify-center gap-2 font-semibold transition ${
                     added
                       ? 'bg-green-500 border-green-500 text-white'
@@ -148,22 +212,32 @@ export default function QuickViewModal({ product, onClose }) {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
                     </svg>
                   )}
-                  <span className="text-sm">{added ? 'Added!' : 'Add to Cart'}</span>
+                  <span className="text-sm">
+                    {added ? 'Added!' : isVariable && !selectedVariation ? 'Select Options' : 'Add to Cart'}
+                  </span>
                 </button>
+                <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-dark text-white text-xs px-2 py-1 rounded-lg whitespace-nowrap opacity-0 group-hover/tip:opacity-100 transition pointer-events-none">
+                  {isVariable && !selectedVariation ? 'Select options first' : 'Add to Cart'}
+                </span>
               </div>
 
               {/* Buy Now */}
               <div className="relative group/tip flex-1">
                 <button
                   onClick={handleBuyNow}
-                  disabled={!inStock}
+                  disabled={!canAddToCart}
                   className="w-full h-12 rounded-xl border-2 border-dark flex items-center justify-center gap-2 font-semibold text-dark hover:bg-dark hover:text-white transition disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                   </svg>
-                  <span className="text-sm">Buy Now</span>
+                  <span className="text-sm">
+                    {isVariable && !selectedVariation ? 'Select Options' : 'Buy Now'}
+                  </span>
                 </button>
+                <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-dark text-white text-xs px-2 py-1 rounded-lg whitespace-nowrap opacity-0 group-hover/tip:opacity-100 transition pointer-events-none">
+                  {isVariable && !selectedVariation ? 'Select options first' : 'Buy Now'}
+                </span>
               </div>
 
               {/* WhatsApp */}
@@ -189,10 +263,11 @@ export default function QuickViewModal({ product, onClose }) {
             <Link
               to={`/product/${product.id}`}
               onClick={onClose}
-              className="text-primary text-sm hover:underline text-center mt-2"
+              className="text-primary text-sm hover:underline text-center mt-1"
             >
               View Full Details →
             </Link>
+
           </div>
         </div>
       </div>

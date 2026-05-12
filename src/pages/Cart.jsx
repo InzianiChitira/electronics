@@ -8,7 +8,7 @@ export default function Cart() {
     <div className="max-w-6xl mx-auto px-4 py-20 text-center">
       <div className="text-8xl mb-6">🛒</div>
       <h2 className="text-2xl font-bold text-gray-800 mb-2">Your cart is empty</h2>
-      <p className="text-gray-500 mb-8">Looks like you haven't added anything yet.</p>
+      <p className="text-gray-500 mb-8">Looks like you have not added anything yet.</p>
       <Link
         to="/shop"
         className="bg-primary text-white px-8 py-3 rounded-full font-bold hover:bg-blue-700 transition"
@@ -29,7 +29,7 @@ export default function Cart() {
         {/* Cart Items */}
         <div className="md:col-span-2 space-y-4">
           {items.map(item => (
-            <div key={item.id} className="bg-white rounded-2xl shadow p-4 flex gap-4 items-center">
+            <div key={item.cartKey} className="bg-white rounded-2xl shadow p-4 flex gap-4 items-start">
 
               {/* Image */}
               <img
@@ -46,7 +46,22 @@ export default function Cart() {
                 >
                   {item.name}
                 </Link>
-                <p className="text-primary font-bold mt-1">
+
+                {/* Variation attributes */}
+                {item.selected_attributes && Object.keys(item.selected_attributes).length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {Object.entries(item.selected_attributes).map(([key, value]) => (
+                      <span
+                        key={key}
+                        className="text-xs bg-blue-50 text-primary border border-primary/20 px-2 py-0.5 rounded-full capitalize font-medium"
+                      >
+                        {key}: {value}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                <p className="text-primary font-bold mt-2">
                   KES {parseFloat(item.price).toLocaleString()}
                 </p>
 
@@ -54,21 +69,21 @@ export default function Cart() {
                 <div className="flex items-center gap-3 mt-3">
                   <div className="flex items-center border rounded-xl overflow-hidden">
                     <button
-                      onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                      onClick={() => updateQuantity(item.cartKey, item.quantity - 1)}
                       className="px-3 py-1 hover:bg-gray-100 transition font-bold"
                     >
                       −
                     </button>
                     <span className="px-3 py-1 font-semibold">{item.quantity}</span>
                     <button
-                      onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                      onClick={() => updateQuantity(item.cartKey, item.quantity + 1)}
                       className="px-3 py-1 hover:bg-gray-100 transition font-bold"
                     >
                       +
                     </button>
                   </div>
                   <button
-                    onClick={() => removeItem(item.id)}
+                    onClick={() => removeItem(item.cartKey)}
                     className="text-red-400 hover:text-red-600 transition text-sm"
                   >
                     Remove
@@ -118,7 +133,7 @@ export default function Cart() {
               to="/shop"
               className="mt-3 block text-center text-primary hover:underline text-sm"
             >
-              ← Continue Shopping
+              Continue Shopping
             </Link>
 
             {/* Payment Methods */}
